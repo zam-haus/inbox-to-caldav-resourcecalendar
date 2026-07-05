@@ -12,6 +12,14 @@ Calendar Clients / iMIP Mail Senders: Google, Nextcloud, Thunderbird
 
 ## Restrictions
 
+### Inconsistent behaviour
+
+When creating a calendar series, moving and deleting one occurrence each within the same day, and then editing the whole series to another time of day:
+
+* Nextcloud Web UI hangs and does not update the series
+* Thunderbird: Edits the unchanged events of the series, keeps the moved occurrence, and omits the series occurrences on the days of the moved and deleted occurrences.
+* Business Calendar 2 on Android + Google Calendar in Android System: Edits the unchanged events of the series, keeps the moved occurrence and the new series occurrence, and omits the series occurrence on the day of the deleted occurrence.
+* Google Calendar Web: Edits the series and discards all deleted or moved occurrences. 
 
 
 ## Relevant Standards

@@ -86,6 +86,14 @@ class ApprovalStore:
                 return self._row_to_booking(row)
         return None
 
+    def find_by_uid(self, resource_email: str, uid: str) -> PendingBooking | None:
+        row = self._db.execute(
+            "SELECT token, resource_email, uid, sequence, forward_message_id, organizer"
+            " FROM pending WHERE resource_email = ? AND uid = ?",
+            (resource_email, uid),
+        ).fetchone()
+        return self._row_to_booking(row) if row else None
+
     def find_by_token(self, token: str) -> PendingBooking | None:
         row = self._db.execute(
             "SELECT token, resource_email, uid, sequence, forward_message_id, organizer"

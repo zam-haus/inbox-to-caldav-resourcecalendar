@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import email.utils
 import imaplib
 import logging
 import threading
@@ -120,6 +121,15 @@ class Pipeline:
                     pass
                 case Action.UPDATE_METADATA:
                     store.update_metadata(event)
+                    # recover from a crash between upsert and forward: an
+                    # approval-required booking must always have a pending entry
+                    # matching the stored sequence
+                    pending = self._approvals.find_by_uid(resource.email, uid)
+                    if not existing.was_auto_accepted and (
+                        pending is None or pending.sequence != existing.sequence
+                    ):
+                        logger.warning("tentative booking %s has no current pending approval; re-forwarding", uid)
+                        self._forward_for_approval(fetched, event, resource, organizer)
                 case Action.DECLINE:
                     self._mailer.send_imip_reply(event, resource, organizer, "DECLINED", decision.reason)
                 case Action.ACCEPT:
@@ -129,18 +139,7 @@ class Pipeline:
                     store.upsert(event, "CANCELLED", timezones=timezones)
                 case Action.TENTATIVE:
                     store.upsert(event, "TENTATIVE", approval_required=True, timezones=timezones)
-                    token = ApprovalStore.new_token()
-                    forward_id = self._mailer.send_approval_forward(fetched.raw, event, resource, token)
-                    self._approvals.add(
-                        PendingBooking(
-                            token=token,
-                            resource_email=resource.email,
-                            uid=uid,
-                            sequence=imip.event_sequence(event),
-                            forward_message_id=forward_id,
-                            organizer=organizer,
-                        )
-                    )
+                    self._forward_for_approval(fetched, event, resource, organizer)
                     self._mailer.send_imip_reply(
                         event,
                         resource,
@@ -148,6 +147,23 @@ class Pipeline:
                         "TENTATIVE",
                         "Your booking was tentatively accepted and awaits approval.",
                     )
+
+    def _forward_for_approval(self, fetched: FetchedMail, event, resource: ResourceConfig, organizer: str) -> None:
+        """Record the pending booking first, then send the forward, so a crash
+        in between leaves a recoverable state (the token still matches)."""
+        token = ApprovalStore.new_token()
+        forward_id = email.utils.make_msgid()
+        self._approvals.add(
+            PendingBooking(
+                token=token,
+                resource_email=resource.email,
+                uid=imip.event_uid(event),
+                sequence=imip.event_sequence(event),
+                forward_message_id=forward_id,
+                organizer=organizer,
+            )
+        )
+        self._mailer.send_approval_forward(fetched.raw, event, resource, token, forward_id)
 
     # -- approval replies ---------------------------------------------------
 

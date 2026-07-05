@@ -1,0 +1,41 @@
+# Example configuration for inbox-to-caldav-resourcecalendar.
+# Any string value may be "env:NAME" to read it from the environment (.env is loaded).
+
+[general]
+# state_path = "state.sqlite3"        # approval correlation store (default: next to this file)
+# conflict_horizon_days = 365         # how far ahead recurring events are expanded for conflicts
+
+[imap]
+server = "imap.example.org"
+user = "resources@example.org"
+password = "env:IMAP_PASSWD"
+inbox = "INBOX"
+# filter = "ALL"                      # extra RFC 3501 SEARCH criteria, combined with UNSEEN
+
+[smtp]
+server = "smtp.example.org"
+# port = 465                          # SMTPS
+user = "resources@example.org"
+password = "env:SMTP_PASSWD"
+from_address = "resources@example.org"
+
+[caldav]
+url = "https://cloud.example.org/remote.php/dav"
+username = "resourcebot"
+password = "env:CALDAV_PASSWD"
+
+# One entry per room/workshop. Several addresses may share the one inbox (FR-10);
+# calendars are identified by URL, never by display name.
+[[resources]]
+email = "room1@example.org"
+display_name = "Room 1"
+calendar_url = "https://cloud.example.org/remote.php/dav/calendars/resourcebot/room1-abcdef/"
+organizer_allowlist = ["alice@example.org", "bob@example.org"]
+approvers = ["board@example.org"]
+
+[[resources]]
+email = "workshop@example.org"
+display_name = "Workshop"
+calendar_url = "https://cloud.example.org/remote.php/dav/calendars/resourcebot/workshop-123456/"
+organizer_allowlist = []
+approvers = ["board@example.org"]

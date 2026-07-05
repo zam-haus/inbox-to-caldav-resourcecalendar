@@ -91,6 +91,8 @@ The script MUST answer scheduling requests with an iMIP `REPLY` on behalf of the
 ### FR-8: Re-approval on update
 When an event that required approval is updated by its organizer (same UID, increased `SEQUENCE`), it MUST revert to tentative and go through the approval flow again.
 
+Updates with an **unchanged** `SEQUENCE` are metadata-only: only non-time, non-recurrence properties (e.g. title, organizer, conference data) are applied to the stored event; times, recurrence rules, and the approval status are kept as stored. Such updates MUST NOT be ignored and MUST NOT require re-approval.
+
 ### FR-9: Conflict handling
 The script MUST decline booking requests that overlap an existing accepted or tentative booking (iMIP `REPLY` with `DECLINED`). Events stored in the resource calendar MUST be marked `OPAQUE` so they block the time slot in free/busy views; cancelled events are set `TRANSPARENT`.
 
@@ -104,6 +106,12 @@ Messages that cannot be attributed to any configured resource address are ignore
 
 ### FR-11: Unsupported iTIP methods
 Only the iTIP methods `REQUEST` and `CANCEL` are processed. All other methods (`COUNTER`, `REFRESH`, `ADD`, `DECLINECOUNTER`, …) are silently ignored.
+
+### FR-12: Privacy filtering
+Events stored in the resource calendar MUST NOT expose full event details to everyone who can view the calendar. Only the following are kept: organizer, title (`SUMMARY`), date/time and recurrence rules (`DTSTART`/`DTEND`/`DURATION`, `RRULE`/`RDATE`/`EXDATE`), `UID`/`SEQUENCE`, and conference-join information (`CONFERENCE`, Google Meet ID via `X-GOOGLE-CONFERENCE`) so the room itself can join. Attendee lists, descriptions, locations, attachments, and all other properties are stripped.
+
+### FR-13: Processed-mail handling
+The script processes only unseen messages and marks a message `\Seen` once it has been fully processed. Messages whose processing fails remain unseen and are retried on the next run.
 
 ## Security Requirements
 

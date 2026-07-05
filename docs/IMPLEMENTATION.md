@@ -124,8 +124,13 @@ Already in `pyproject.toml` context: `icalendar`, `caldav`, `recurring_ical_even
 5. **M5 — Approval workflow**: tentative bookings, approver forwards, ACCEPT/REJECT parsing, re-approval on update, correlation store.
 6. **M6 — Hardening**: idempotency/retry behavior, poison-message handling, integration tests, deployment docs (systemd timer example).
 
+## Decided During Implementation
+
+- Processed mails are marked `\Seen` (FR-13); failed mails stay unseen and are retried.
+- Conflict-check horizon for unbounded RRULEs: 1 year ahead, configurable via `general.conflict_horizon_days`.
+- Privacy filtering (FR-12): stored events keep only organizer, summary, times/recurrence, UID/SEQUENCE, and conference-join properties (`CONFERENCE`, `X-GOOGLE-CONFERENCE`); everything else is stripped.
+- Secrets: the local `config.toml` (gitignored) references `.env` values via `"env:NAME"`; `config.example.toml` is the committed template.
+
 ## Open Points
 
 - SMTP account details for outgoing mail are new configuration not present in the prototypes; confirm the functional mailboxes may send mail.
-- Conflict-check horizon for unbounded RRULEs (proposal: 1 year ahead, configurable).
-- Whether processed mails are marked `\Seen` or moved to a subfolder (proposal: subfolder, keeps the inbox as a clean queue).

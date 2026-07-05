@@ -103,7 +103,7 @@ class Pipeline:
             organizer = imip.organizer_address(event) or parsed.sender
 
             if parsed.method == "CANCEL":
-                decision = decide_cancel(event, existing)
+                decision = decide_cancel(event, parsed.sender, resource, existing)
             else:
                 conflict = decision = None
                 if not imip.has_recurrence_id(event):
@@ -133,12 +133,14 @@ class Pipeline:
                 case Action.DECLINE:
                     self._mailer.send_imip_reply(event, resource, organizer, "DECLINED", decision.reason)
                 case Action.ACCEPT:
-                    store.upsert(event, "CONFIRMED", approval_required=False, timezones=timezones)
+                    store.upsert(event, "CONFIRMED", approval_required=False, timezones=timezones, owner=parsed.sender)
                     self._mailer.send_imip_reply(event, resource, organizer, "ACCEPTED")
                 case Action.CANCEL:
-                    store.upsert(event, "CANCELLED", timezones=timezones)
+                    store.upsert(event, "CANCELLED", timezones=timezones, owner=existing.owner or parsed.sender)
                 case Action.TENTATIVE:
-                    store.upsert(event, "TENTATIVE", approval_required=True, timezones=timezones)
+                    store.upsert(
+                        event, "TENTATIVE", approval_required=True, timezones=timezones, owner=parsed.sender
+                    )
                     self._forward_for_approval(fetched, event, resource, organizer)
                     self._mailer.send_imip_reply(
                         event,

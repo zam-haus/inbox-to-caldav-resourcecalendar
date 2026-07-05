@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 
 # marks bookings that went through the approval flow (FR-8)
 APPROVAL_PROP = "X-INBOX2CALDAV-APPROVAL"
+# authenticated sender that created the booking; authorizes later updates/cancels
+OWNER_PROP = "X-INBOX2CALDAV-OWNER"
 
 
 def _as_datetime(value: datetime | date) -> datetime:
@@ -85,6 +87,7 @@ class CaldavStore:
             exists=True,
             sequence=imip.event_sequence(vevent),
             was_auto_accepted=str(vevent.get(APPROVAL_PROP, "NONE")) != "REQUIRED",
+            owner=str(vevent.get(OWNER_PROP, "")),
         )
 
     def has_conflict(self, event: icalendar.Event, horizon_days: int) -> bool:
@@ -124,6 +127,7 @@ class CaldavStore:
         status: str,
         approval_required: bool,
         timezones: list[icalendar.Timezone],
+        owner: str,
     ) -> icalendar.Calendar:
         # Privacy: only expose what viewers of the resource calendar need —
         # who booked, what it is called, when it happens, and how to join.
@@ -156,6 +160,8 @@ class CaldavStore:
             del comp["EXDATE"]
         if approval_required:
             comp[APPROVAL_PROP] = "REQUIRED"
+        if owner:
+            comp[OWNER_PROP] = owner
         cal = icalendar.Calendar()
         cal.add("PRODID", "-//inbox-to-caldav-resourcecalendar//EN")
         cal.add("VERSION", "2.0")
@@ -170,10 +176,11 @@ class CaldavStore:
         status: str,
         approval_required: bool = False,
         timezones: list[icalendar.Timezone] | None = None,
+        owner: str = "",
     ) -> None:
         """Create or overwrite the booking with the given STATUS (never deletes, FR-4)."""
         uid = imip.event_uid(event)
-        cal = self._sanitized_calendar(event, status, approval_required, timezones or [])
+        cal = self._sanitized_calendar(event, status, approval_required, timezones or [], owner)
         existing = self._find_object(uid)
         if existing is not None:
             existing.data = cal.to_ical().decode()

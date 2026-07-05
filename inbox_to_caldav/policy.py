@@ -26,6 +26,10 @@ class Decision:
     reason: str = ""
 
 
+def _norm(addr: str) -> str:
+    return (addr or "").strip().lower()
+
+
 @dataclass
 class ExistingState:
     """State of the event with the same UID already in the resource calendar."""
@@ -33,6 +37,24 @@ class ExistingState:
     exists: bool = False
     sequence: int = 0
     was_auto_accepted: bool = True  # False if the stored booking went through approval
+    # authenticated sender that created the booking; empty for legacy events
+    owner: str = ""
+
+
+def _is_owner(sender: str, resource: ResourceConfig, existing: ExistingState) -> bool:
+    """Authorize an update/cancel of an existing booking.
+
+    The UID and SEQUENCE of a booking are published in the (viewable) resource
+    calendar, so they are not secrets. Modifying an existing booking is allowed
+    only for the authenticated sender that created it (mail `From`, validated by
+    the mail server per SR-1) or for an approver. Legacy bookings without a
+    recorded owner fall back to permissive behavior only for approvers.
+    """
+    if resource.is_approver(sender):
+        return True
+    if not existing.owner:
+        return False
+    return _norm(sender) == _norm(existing.owner)
 
 
 def decide_request(
@@ -51,6 +73,9 @@ def decide_request(
         )
 
     if existing.exists:
+        if not _is_owner(sender, resource, existing):
+            # someone other than the booking's organizer is trying to change it
+            return Decision(Action.DECLINE, "Only the organizer of this booking may modify it.")
         sequence = imip.event_sequence(event)
         if sequence < existing.sequence:
             return Decision(Action.IGNORE, "stale SEQUENCE")
@@ -71,7 +96,7 @@ def decide_request(
     return Decision(Action.ACCEPT)
 
 
-def decide_cancel(event: icalendar.Event, existing: ExistingState) -> Decision:
+def decide_cancel(event: icalendar.Event, sender: str, resource: ResourceConfig, existing: ExistingState) -> Decision:
     if imip.has_recurrence_id(event):
         return Decision(
             Action.DECLINE,
@@ -80,4 +105,7 @@ def decide_cancel(event: icalendar.Event, existing: ExistingState) -> Decision:
         )
     if not existing.exists:
         return Decision(Action.IGNORE, "CANCEL for unknown UID")
+    if not _is_owner(sender, resource, existing):
+        # do not act on a cancel forged by someone who is not the organizer
+        return Decision(Action.IGNORE, "CANCEL from non-organizer")
     return Decision(Action.CANCEL)

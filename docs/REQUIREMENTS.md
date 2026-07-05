@@ -118,6 +118,9 @@ The script processes only unseen messages and marks a message `\Seen` once it ha
 ### SR-1: Sender authenticity
 Trust in the allowlist relies on the receiving mail server enforcing DKIM/SPF/DMARC and rejecting mail that fails these checks. The script itself does not re-verify sender authenticity; it MUST therefore only be deployed behind a mail server with such enforcement.
 
+### SR-2: Booking ownership
+The `UID` and `SEQUENCE` of a booking are published in the (viewable) resource calendar and MUST NOT be treated as secrets. A booking records the authenticated sender that created it; only that sender (or an approver) may later update or cancel it. Update or cancel messages from any other sender MUST NOT take effect, regardless of a correct `UID`/`SEQUENCE`. Bookings without a recorded owner may only be modified by an approver.
+
 ## Compatibility Requirements
 
 The script MUST work with the following tested environment:
